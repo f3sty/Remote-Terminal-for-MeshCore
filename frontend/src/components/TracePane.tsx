@@ -30,7 +30,7 @@ type TraceSortMode = 'alpha' | 'recent' | 'distance' | 'traced';
 type CustomHopBytes = 1 | 2 | 4;
 
 const RECENT_TRACES_KEY = 'remoteterm-recent-traces';
-const MAX_RECENT_TRACES = 5;
+const MAX_RECENT_TRACES = 15;
 const RECENT_NODES_KEY = 'remoteterm-recent-trace-nodes';
 const MAX_RECENT_NODES = 30;
 const MAX_RENDERED_REPEATERS = 60;
