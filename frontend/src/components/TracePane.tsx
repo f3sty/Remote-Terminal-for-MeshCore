@@ -859,7 +859,7 @@ export function TracePane({ contacts, config, onRunTracePath }: TracePaneProps) 
             <div className="flex flex-col rounded-lg border border-border bg-card lg:min-h-0 lg:flex-1">
               <div className="shrink-0 flex items-center justify-between gap-3 border-b border-border px-4 py-3">
                 <h3 className="text-sm font-semibold">
-                  Results{result ? ` (${result.timeout_seconds.toFixed(1)}s)` : ''}
+                  Results{result ? ` (${result.elapsed_seconds.toFixed(1)}s)` : ''}
                 </h3>
                 <Button
                   type="button"

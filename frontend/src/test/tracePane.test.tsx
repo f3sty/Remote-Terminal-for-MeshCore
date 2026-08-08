@@ -83,6 +83,7 @@ describe('TracePane', () => {
       async (): Promise<RadioTraceResponse> => ({
         path_len: 2,
         timeout_seconds: 6,
+        elapsed_seconds: 1.2,
         nodes: [
           {
             role: 'repeater',
@@ -128,7 +129,7 @@ describe('TracePane', () => {
       ]);
     });
 
-    expect(screen.getByRole('heading', { name: 'Results (6.0s)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Results (1.2s)' })).toBeInTheDocument();
     expect(screen.getByText('+7.5 dB')).toBeInTheDocument();
     expect(screen.getByText('+5.0 dB')).toBeInTheDocument();
 
@@ -146,6 +147,7 @@ describe('TracePane', () => {
       async (): Promise<RadioTraceResponse> => ({
         path_len: 0,
         timeout_seconds: 6,
+        elapsed_seconds: 1.2,
         nodes: [],
       })
     );
@@ -199,6 +201,7 @@ describe('TracePane', () => {
       async (): Promise<RadioTraceResponse> => ({
         path_len: 2,
         timeout_seconds: 4.5,
+        elapsed_seconds: 1.2,
         nodes: [
           {
             role: 'custom',
@@ -404,6 +407,7 @@ describe('TracePane', () => {
       resolveTrace?.({
         path_len: 1,
         timeout_seconds: 6,
+        elapsed_seconds: 1.2,
         nodes: [
           {
             role: 'repeater',

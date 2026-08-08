@@ -622,6 +622,7 @@ export interface RadioTraceHopRequest {
 export interface RadioTraceResponse {
   path_len: number;
   timeout_seconds: number;
+  elapsed_seconds: number;
   nodes: RadioTraceNode[];
 }
 

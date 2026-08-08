@@ -138,7 +138,12 @@ function createProps(overrides: Partial<React.ComponentProps<typeof Conversation
     loadingNewer: false,
     messageInputRef: { current: null },
     onTrace: vi.fn(async () => {}),
-    onRunTracePath: vi.fn(async () => ({ path_len: 0, timeout_seconds: 5, nodes: [] })),
+    onRunTracePath: vi.fn(async () => ({
+      path_len: 0,
+      timeout_seconds: 5,
+      elapsed_seconds: 1,
+      nodes: [],
+    })),
     onPathDiscovery: vi.fn(async () => {
       throw new Error('unused');
     }),

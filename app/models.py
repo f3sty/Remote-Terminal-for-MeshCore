@@ -802,6 +802,9 @@ class RadioTraceResponse(BaseModel):
 
     path_len: int = Field(description="Number of hashed nodes returned by the trace response")
     timeout_seconds: float = Field(description="Timeout window used while waiting for the trace")
+    elapsed_seconds: float = Field(
+        description="Elapsed time from sending the trace until its response"
+    )
     nodes: list[RadioTraceNode] = Field(
         default_factory=list,
         description="Ordered trace nodes: repeater hops followed by the terminal local radio",
