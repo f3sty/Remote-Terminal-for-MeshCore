@@ -200,6 +200,11 @@ def setup_logging() -> None:
                     "handlers": ["uvicorn_access"],
                     "propagate": False,
                 },
+               "app.services.trace_timeout": {
+                    "level": settings.log_level,
+                    "handlers": ["default"],
+                    "propagate": False,
+                },
             },
         }
     )
