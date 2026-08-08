@@ -38,6 +38,7 @@ from app.services.contact_reconciliation import (
     record_contact_name_and_reconcile,
 )
 from app.services.radio_runtime import radio_runtime as radio_manager
+from app.services.trace_timeout import trace_timeout_seconds
 
 logger = logging.getLogger(__name__)
 
@@ -458,10 +459,11 @@ async def request_trace(public_key: str) -> TraceResponse:
             raise HTTPException(status_code=422, detail=f"Failed to send trace: {result.payload}")
 
         # Wait for the matching TRACE_DATA event
+        timeout_seconds = trace_timeout_seconds(result)
         event = await mc.wait_for_event(
             EventType.TRACE_DATA,
             attribute_filters={"tag": tag},
-            timeout=15,
+            timeout=timeout_seconds,
         )
 
     if event is None:

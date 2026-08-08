@@ -616,7 +616,7 @@ class TestTracePath:
             first_seen=None,
         )
         mc.commands.send_trace = AsyncMock(
-            return_value=_radio_result(EventType.MSG_SENT, {"suggested_timeout": 4000})
+            return_value=_radio_result(EventType.MSG_SENT, {"suggested_timeout": 40000})
         )
         mc.wait_for_event = AsyncMock(
             return_value=MagicMock(
@@ -657,7 +657,9 @@ class TestTracePath:
             flags=2,
         )
         mc.wait_for_event.assert_awaited_once()
+        assert mc.wait_for_event.await_args.kwargs["timeout"] == 150.0
         assert response.path_len == 2
+        assert response.timeout_seconds == 48.0
         assert response.nodes[0].name == "Relay Alpha"
         assert response.nodes[0].snr == 7.5
         assert response.nodes[1].name == "Relay Beta"
@@ -792,6 +794,54 @@ class TestTracePath:
         assert response.nodes[0].observed_hash == "ae"
         assert response.nodes[1].role == "custom"
         assert response.nodes[1].observed_hash == "bf"
+
+    @pytest.mark.asyncio
+    async def test_trace_timeout_is_bounded_above_previous_30_second_limit(self):
+        mc = _mock_meshcore_with_info()
+        repeater = Contact(
+            public_key="55" * 32,
+            name="Distant Relay",
+            type=CONTACT_TYPE_REPEATER,
+            flags=0,
+            direct_path=None,
+            direct_path_len=-1,
+            direct_path_hash_mode=-1,
+            last_advert=None,
+            lat=None,
+            lon=None,
+            last_seen=None,
+            on_radio=False,
+            last_contacted=None,
+            last_read_at=None,
+            first_seen=None,
+        )
+        mc.commands.send_trace = AsyncMock(
+            return_value=_radio_result(EventType.MSG_SENT, {"suggested_timeout": 100000})
+        )
+        mc.wait_for_event = AsyncMock(
+            return_value=MagicMock(
+                payload={"path_len": 1, "path": [{"hash": "55" * 4}, {"snr": 1}]}
+            )
+        )
+
+        with (
+            patch("app.routers.radio.radio_manager.require_connected", return_value=mc),
+            patch(
+                "app.routers.radio.ContactRepository.get_by_key",
+                new_callable=AsyncMock,
+                return_value=repeater,
+            ),
+            patch("app.routers.radio.radio_manager") as mock_rm,
+        ):
+            mock_rm.radio_operation = _noop_radio_operation(mc)
+            response = await trace_path(
+                RadioTraceRequest(
+                    hop_hash_bytes=4,
+                    hops=[RadioTraceHopRequest(public_key=repeater.public_key)],
+                )
+            )
+
+        assert response.timeout_seconds == 120.0
 
     @pytest.mark.asyncio
     async def test_discovers_all_supported_types(self):

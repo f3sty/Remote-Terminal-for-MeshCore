@@ -633,7 +633,9 @@ class TestTraceRoute:
     async def test_wait_timeout_returns_408(self, test_db):
         mc = _mock_mc()
         await _insert_contact(KEY_A, name="Client", contact_type=1)
-        mc.commands.send_trace = AsyncMock(return_value=_radio_result(EventType.OK))
+        mc.commands.send_trace = AsyncMock(
+            return_value=_radio_result(EventType.OK, {"suggested_timeout": 40000})
+        )
         mc.wait_for_event = AsyncMock(return_value=None)
 
         with (
@@ -650,12 +652,15 @@ class TestTraceRoute:
             tag=1234,
             flags=2,
         )
+        assert mc.wait_for_event.await_args.kwargs["timeout"] == 48.0
 
     @pytest.mark.asyncio
     async def test_success_returns_remote_and_local_snr(self, test_db):
         mc = _mock_mc()
         await _insert_contact(KEY_A, name="Client", contact_type=1)
-        mc.commands.send_trace = AsyncMock(return_value=_radio_result(EventType.OK))
+        mc.commands.send_trace = AsyncMock(
+            return_value=_radio_result(EventType.OK, {"suggested_timeout": 40000})
+        )
         mc.wait_for_event = AsyncMock(
             return_value=MagicMock(payload={"path": [{"snr": 5.5}, {"snr": 3.2}], "path_len": 2})
         )
@@ -670,6 +675,7 @@ class TestTraceRoute:
         assert response.remote_snr == 5.5
         assert response.local_snr == 3.2
         assert response.path_len == 2
+        assert mc.wait_for_event.await_args.kwargs["timeout"] == 48.0
         mc.commands.send_trace.assert_awaited_once_with(
             path=KEY_A[:8],
             tag=1234,

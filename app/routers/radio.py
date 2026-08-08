@@ -41,6 +41,7 @@ from app.services.radio_commands import (
     import_private_key_and_refresh_keystore,
 )
 from app.services.radio_runtime import radio_runtime as radio_manager
+from app.services.trace_timeout import trace_timeout_seconds
 from app.websocket import broadcast_event, broadcast_health
 
 logger = logging.getLogger(__name__)
@@ -59,11 +60,9 @@ _DISCOVERY_NODE_TYPES: dict[int, DiscoveryNodeType] = {
     2: "repeater",
     4: "sensor",
 }
-TRACE_WAIT_TIMEOUT_SECONDS = 45.0
-TRACE_DEFAULT_TIMEOUT_SECONDS = 15.0
-TRACE_TIMEOUT_MIN_SECONDS = 5.0
-TRACE_TIMEOUT_MAX_SECONDS = 30.0
-TRACE_TIMEOUT_MARGIN = 1.2
+# The event waiter starts before the command is sent to avoid missing a fast
+# response, so give it some additional room beyond the maximum post-send wait.
+TRACE_WAIT_TIMEOUT_SECONDS = 150.0
 TRACE_HASH_FLAGS = {1: 0, 2: 1, 4: 2}
 
 
@@ -264,18 +263,6 @@ async def _attach_known_names(results: list[RadioDiscoveryResult]) -> None:
 
 def _trace_hash_for_key(public_key: str, hop_hash_bytes: int) -> str:
     return public_key[: hop_hash_bytes * 2].lower()
-
-
-def _trace_timeout_seconds(send_result: object) -> float:
-    payload = getattr(send_result, "payload", None) or {}
-    suggested_timeout = payload.get("suggested_timeout")
-    try:
-        if suggested_timeout is None:
-            raise TypeError
-        timeout_seconds = float(suggested_timeout) / 1000.0 * TRACE_TIMEOUT_MARGIN
-    except (TypeError, ValueError):
-        timeout_seconds = TRACE_DEFAULT_TIMEOUT_SECONDS
-    return max(TRACE_TIMEOUT_MIN_SECONDS, min(TRACE_TIMEOUT_MAX_SECONDS, timeout_seconds))
 
 
 async def _resolve_trace_hops(
@@ -675,7 +662,7 @@ async def trace_path(request: RadioTraceRequest) -> RadioTraceResponse:
             if send_result is None or send_result.type == EventType.ERROR:
                 raise HTTPException(status_code=422, detail="Failed to send trace")
 
-            timeout_seconds = _trace_timeout_seconds(send_result)
+            timeout_seconds = trace_timeout_seconds(send_result)
             try:
                 event = await asyncio.wait_for(response_task, timeout=timeout_seconds)
             except TimeoutError as exc:
