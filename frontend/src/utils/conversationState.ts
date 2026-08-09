@@ -11,6 +11,7 @@
 
 const SORT_ORDER_KEY = 'remoteterm-sortOrder';
 const SIDEBAR_SECTION_SORT_ORDERS_KEY = 'remoteterm-sidebar-section-sort-orders';
+const SIDEBAR_SECTION_ORDER_KEY = 'remoteterm-sidebar-section-order';
 
 export type ConversationTimes = Record<string, number>;
 // 'type-*' orders group by contact/channel type first, then apply the sub-order.
@@ -19,6 +20,14 @@ export type ConversationTimes = Record<string, number>;
 export type SortOrder = 'recent' | 'alpha' | 'type-recent' | 'type-alpha';
 export type SidebarSortableSection = 'favorites' | 'channels' | 'contacts' | 'rooms' | 'repeaters';
 export type SidebarSectionSortOrders = Record<SidebarSortableSection, SortOrder>;
+export type SidebarTreeSection = 'channels' | 'contacts' | 'repeaters' | 'rooms';
+
+export const DEFAULT_SIDEBAR_TREE_SECTION_ORDER: SidebarTreeSection[] = [
+  'channels',
+  'contacts',
+  'repeaters',
+  'rooms',
+];
 
 // Full cycle for the Favorites sort toggle, in click order.
 export const FAVORITES_SORT_CYCLE: SortOrder[] = ['recent', 'alpha', 'type-recent', 'type-alpha'];
@@ -135,6 +144,34 @@ export function loadLocalStorageSidebarSectionSortOrders(): SidebarSectionSortOr
 export function saveLocalStorageSidebarSectionSortOrders(orders: SidebarSectionSortOrders): void {
   try {
     localStorage.setItem(SIDEBAR_SECTION_SORT_ORDERS_KEY, JSON.stringify(orders));
+  } catch {
+    // localStorage might be disabled
+  }
+}
+
+export function loadLocalStorageSidebarSectionOrder(): SidebarTreeSection[] | null {
+  try {
+    const stored = localStorage.getItem(SIDEBAR_SECTION_ORDER_KEY);
+    if (!stored) return null;
+
+    const parsed = JSON.parse(stored) as unknown;
+    if (!Array.isArray(parsed)) return null;
+
+    const order = parsed.filter((section): section is SidebarTreeSection =>
+      (DEFAULT_SIDEBAR_TREE_SECTION_ORDER as string[]).includes(section as string)
+    );
+    return DEFAULT_SIDEBAR_TREE_SECTION_ORDER.every((section) => order.includes(section)) &&
+      order.length === DEFAULT_SIDEBAR_TREE_SECTION_ORDER.length
+      ? order
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLocalStorageSidebarSectionOrder(order: SidebarTreeSection[]): void {
+  try {
+    localStorage.setItem(SIDEBAR_SECTION_ORDER_KEY, JSON.stringify(order));
   } catch {
     // localStorage might be disabled
   }

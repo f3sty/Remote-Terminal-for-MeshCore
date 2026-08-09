@@ -285,6 +285,35 @@ describe('Sidebar section summaries', () => {
     expect(screen.queryByText(roomName)).not.toBeInTheDocument();
   });
 
+  it('reorders conversation trees by dragging and persists the order', () => {
+    const { unmount } = renderSidebar();
+    const channelsHeader = getSectionHeaderContainer('Channels');
+    const roomsHeader = getSectionHeaderContainer('Room Servers');
+    const dataTransfer = {
+      effectAllowed: '',
+      dropEffect: '',
+      setData: vi.fn(),
+    };
+
+    fireEvent.dragStart(roomsHeader, { dataTransfer });
+    fireEvent.drop(channelsHeader, { dataTransfer });
+
+    expect(
+      screen.getByRole('button', { name: 'Room Servers' }).compareDocumentPosition(
+        screen.getByRole('button', { name: 'Channels' })
+      ) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+
+    unmount();
+    renderSidebar();
+
+    expect(
+      screen.getByRole('button', { name: 'Room Servers' }).compareDocumentPosition(
+        screen.getByRole('button', { name: 'Channels' })
+      ) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
   it('renders same-name channels when keys differ and allows selecting both', () => {
     const publicChannel = makeChannel('AA'.repeat(16), 'Public');
     const channelA = makeChannel('DD'.repeat(16), '#shared');

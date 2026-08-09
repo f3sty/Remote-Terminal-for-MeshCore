@@ -7,6 +7,7 @@ import {
   CheckCheck,
   ChevronDown,
   ChevronRight,
+  GripVertical,
   LockOpen,
   Logs,
   Map,
@@ -26,11 +27,15 @@ import {
   FAVORITES_SORT_CYCLE,
   getStateKey,
   loadLegacyLocalStorageSortOrder,
+  DEFAULT_SIDEBAR_TREE_SECTION_ORDER,
+  loadLocalStorageSidebarSectionOrder,
   loadLocalStorageSidebarSectionSortOrders,
+  saveLocalStorageSidebarSectionOrder,
   saveLocalStorageSidebarSectionSortOrders,
   type ConversationTimes,
   type SidebarSectionSortOrders,
   type SidebarSortableSection,
+  type SidebarTreeSection,
   type SortOrder,
 } from '../utils/conversationState';
 import { isPublicChannelKey } from '../utils/publicChannel';
@@ -176,6 +181,10 @@ function loadInitialSectionSortOrders(): SidebarSectionSortOrders {
   return orders;
 }
 
+function loadInitialTreeSectionOrder(): SidebarTreeSection[] {
+  return loadLocalStorageSidebarSectionOrder() ?? DEFAULT_SIDEBAR_TREE_SECTION_ORDER;
+}
+
 export function Sidebar({
   contacts,
   channels,
@@ -203,6 +212,9 @@ export function Sidebar({
   const [searchQuery, setSearchQuery] = useState('');
   const initialSectionSortOrders = useMemo(loadInitialSectionSortOrders, []);
   const [sectionSortOrders, setSectionSortOrders] = useState(initialSectionSortOrders);
+  const initialTreeSectionOrder = useMemo(loadInitialTreeSectionOrder, []);
+  const [treeSectionOrder, setTreeSectionOrder] = useState(initialTreeSectionOrder);
+  const [draggedTreeSection, setDraggedTreeSection] = useState<SidebarTreeSection | null>(null);
   const initialCollapsedState = useMemo(loadCollapsedState, []);
   const [toolsCollapsed, setToolsCollapsed] = useState(initialCollapsedState.tools);
   const [favoritesCollapsed, setFavoritesCollapsed] = useState(initialCollapsedState.favorites);
@@ -219,6 +231,22 @@ export function Sidebar({
       saveLocalStorageSidebarSectionSortOrders(updated);
       return updated;
     });
+  };
+
+  const handleTreeSectionDrop = (target: SidebarTreeSection) => {
+    if (!draggedTreeSection || draggedTreeSection === target) return;
+    setTreeSectionOrder((previous) => {
+      const next = [...previous];
+      const fromIndex = next.indexOf(draggedTreeSection);
+      if (fromIndex < 0) return previous;
+      next.splice(fromIndex, 1);
+      const targetIndex = next.indexOf(target);
+      if (targetIndex < 0) return previous;
+      next.splice(targetIndex, 0, draggedTreeSection);
+      saveLocalStorageSidebarSectionOrder(next);
+      return next;
+    });
+    setDraggedTreeSection(null);
   };
 
   const handleSelectConversation = (conversation: Conversation) => {
@@ -836,13 +864,37 @@ export function Sidebar({
     onToggle: () => void,
     sortSection: SidebarSortableSection | null = null,
     unreadCount = 0,
-    highlightUnread = false
+    highlightUnread = false,
+    treeSection: SidebarTreeSection | null = null
   ) => {
     const effectiveCollapsed = isSearching ? false : collapsed;
     const sectionSortOrder = sortSection ? sectionSortOrders[sortSection] : null;
 
     return (
-      <div className="flex justify-between items-center px-3 py-2 pt-3.5">
+      <div
+        className={cn(
+          'flex justify-between items-center px-3 py-2 pt-3.5',
+          treeSection && draggedTreeSection === treeSection && 'opacity-50'
+        )}
+        draggable={Boolean(treeSection) && !isSearching}
+        onDragStart={(event) => {
+          if (!treeSection || isSearching) return;
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', treeSection);
+          setDraggedTreeSection(treeSection);
+        }}
+        onDragEnd={() => setDraggedTreeSection(null)}
+        onDragOver={(event) => {
+          if (treeSection && draggedTreeSection && draggedTreeSection !== treeSection) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+          }
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          if (treeSection) handleTreeSectionDrop(treeSection);
+        }}
+      >
         <button
           className={cn(
             'flex items-center gap-1.5 text-[0.625rem] uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded',
@@ -894,8 +946,89 @@ export function Sidebar({
             )}
           </div>
         )}
+        {treeSection && !isSearching && (
+          <span
+            className="ml-1 cursor-grab text-muted-foreground/50 hover:text-muted-foreground"
+            title="Drag to reorder sections"
+            aria-hidden="true"
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </span>
+        )}
       </div>
     );
+  };
+
+  const renderTreeSection = (section: SidebarTreeSection) => {
+    switch (section) {
+      case 'channels':
+        if (nonFavoriteChannels.length === 0) return null;
+        return (
+          <div key={section}>
+            {renderSectionHeader(
+              'Channels',
+              channelsCollapsed,
+              () => setChannelsCollapsed((prev) => !prev),
+              'channels',
+              channelsUnreadCount,
+              channelsHasMention,
+              section
+            )}
+            {(isSearching || !channelsCollapsed) &&
+              channelRows.map((row) => renderConversationRow(row))}
+          </div>
+        );
+      case 'contacts':
+        if (nonFavoriteContacts.length === 0) return null;
+        return (
+          <div key={section}>
+            {renderSectionHeader(
+              'Contacts',
+              contactsCollapsed,
+              () => setContactsCollapsed((prev) => !prev),
+              'contacts',
+              contactsUnreadCount,
+              contactsUnreadCount > 0,
+              section
+            )}
+            {(isSearching || !contactsCollapsed) &&
+              contactRows.map((row) => renderConversationRow(row))}
+          </div>
+        );
+      case 'repeaters':
+        if (nonFavoriteRepeaters.length === 0) return null;
+        return (
+          <div key={section}>
+            {renderSectionHeader(
+              'Repeaters',
+              repeatersCollapsed,
+              () => setRepeatersCollapsed((prev) => !prev),
+              'repeaters',
+              repeatersUnreadCount,
+              false,
+              section
+            )}
+            {(isSearching || !repeatersCollapsed) &&
+              repeaterRows.map((row) => renderConversationRow(row))}
+          </div>
+        );
+      case 'rooms':
+        if (nonFavoriteRooms.length === 0) return null;
+        return (
+          <div key={section}>
+            {renderSectionHeader(
+              'Room Servers',
+              roomsCollapsed,
+              () => setRoomsCollapsed((prev) => !prev),
+              'rooms',
+              roomsUnreadCount,
+              roomsUnreadCount > 0,
+              section
+            )}
+            {(isSearching || !roomsCollapsed) && roomRows.map((row) => renderConversationRow(row))}
+          </div>
+        );
+    }
   };
 
   return (
@@ -981,67 +1114,8 @@ export function Sidebar({
           </>
         )}
 
-        {/* Channels */}
-        {nonFavoriteChannels.length > 0 && (
-          <>
-            {renderSectionHeader(
-              'Channels',
-              channelsCollapsed,
-              () => setChannelsCollapsed((prev) => !prev),
-              'channels',
-              channelsUnreadCount,
-              channelsHasMention
-            )}
-            {(isSearching || !channelsCollapsed) &&
-              channelRows.map((row) => renderConversationRow(row))}
-          </>
-        )}
-
-        {/* Contacts */}
-        {nonFavoriteContacts.length > 0 && (
-          <>
-            {renderSectionHeader(
-              'Contacts',
-              contactsCollapsed,
-              () => setContactsCollapsed((prev) => !prev),
-              'contacts',
-              contactsUnreadCount,
-              contactsUnreadCount > 0
-            )}
-            {(isSearching || !contactsCollapsed) &&
-              contactRows.map((row) => renderConversationRow(row))}
-          </>
-        )}
-
-        {/* Repeaters */}
-        {nonFavoriteRepeaters.length > 0 && (
-          <>
-            {renderSectionHeader(
-              'Repeaters',
-              repeatersCollapsed,
-              () => setRepeatersCollapsed((prev) => !prev),
-              'repeaters',
-              repeatersUnreadCount
-            )}
-            {(isSearching || !repeatersCollapsed) &&
-              repeaterRows.map((row) => renderConversationRow(row))}
-          </>
-        )}
-
-        {/* Room Servers */}
-        {nonFavoriteRooms.length > 0 && (
-          <>
-            {renderSectionHeader(
-              'Room Servers',
-              roomsCollapsed,
-              () => setRoomsCollapsed((prev) => !prev),
-              'rooms',
-              roomsUnreadCount,
-              roomsUnreadCount > 0
-            )}
-            {(isSearching || !roomsCollapsed) && roomRows.map((row) => renderConversationRow(row))}
-          </>
-        )}
+        {/* Reorderable conversation trees */}
+        {treeSectionOrder.map(renderTreeSection)}
 
         {/* Empty state */}
         {nonFavoriteContacts.length === 0 &&
