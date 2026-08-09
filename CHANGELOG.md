@@ -1,3 +1,17 @@
+## [3.17.1-dev1] - 2026-08-09
+
+* Feature: Drag to re-order sidebar categories
+* Feature: Telemetry collection moved from top of hour to a public key-derived minute
+* Feature: Increased stored Trace count from 5 to 15
+* Feature: Increased telemetry storage to 90 days / 2000 points
+* Bug: Trace now displays elapsed time of trace, not the timeout value
+* Bug/Feature: Lots of re-worked timeouts:
+    - Trace now respects mc's timeout estemate
+    - Conservative timeouts for flood ops
+    - Direct ops use a timeout based on hop count
+* Bug: Trace timeout returns 422 to prevent constant tr-tries
+
+
 ## [3.17.1] - 2026-07-26
 
 * Feature: Auto-retry with flood for no-response-heard repeater login
