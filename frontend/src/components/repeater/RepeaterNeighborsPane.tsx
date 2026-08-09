@@ -1,4 +1,13 @@
-import { useMemo, useState, useCallback, lazy, Suspense } from 'react';
+import {
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+  lazy,
+  Suspense,
+  type KeyboardEvent,
+  type PointerEvent,
+} from 'react';
 import { cn } from '@/lib/utils';
 import { RepeaterPane, NotFetched, formatDuration } from './repeaterPaneShared';
 import { isValidLocation, calculateDistance, formatDistance } from '../../utils/pathUtils';
@@ -17,6 +26,10 @@ const NeighborsMiniMap = lazy(() =>
 
 type SortField = 'name' | 'snr' | 'distance' | 'last_heard';
 type SortDir = 'asc' | 'desc';
+
+const DEFAULT_TABLE_SPLIT = 40;
+const MIN_TABLE_SPLIT = 20;
+const MAX_TABLE_SPLIT = 75;
 
 // Direction applied when a column is first selected. Name reads naturally A→Z
 // and nearest-first/most-recent-first are the intuitive starting points; SNR
@@ -116,6 +129,9 @@ export function NeighborsPane({
 
   const [sortField, setSortField] = useState<SortField>('snr');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [tableSplit, setTableSplit] = useState(DEFAULT_TABLE_SPLIT);
+  const [isResizing, setIsResizing] = useState(false);
+  const splitContainerRef = useRef<HTMLDivElement>(null);
 
   const handleSort = useCallback(
     (field: SortField) => {
@@ -127,6 +143,54 @@ export function NeighborsPane({
       }
     },
     [sortField]
+  );
+
+  const updateTableSplit = useCallback((clientY: number) => {
+    const bounds = splitContainerRef.current?.getBoundingClientRect();
+    if (!bounds || bounds.height <= 0) return;
+
+    const nextSplit = ((clientY - bounds.top) / bounds.height) * 100;
+    setTableSplit(Math.min(MAX_TABLE_SPLIT, Math.max(MIN_TABLE_SPLIT, nextSplit)));
+  }, []);
+
+  const handleResizePointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    setIsResizing(true);
+  }, []);
+
+  const handleResizePointerMove = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (isResizing) updateTableSplit(event.clientY);
+    },
+    [isResizing, updateTableSplit]
+  );
+
+  const stopResizing = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    setIsResizing(false);
+  }, []);
+
+  const handleResizeKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      let nextSplit: number | null = null;
+      if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+        nextSplit = tableSplit - 5;
+      } else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+        nextSplit = tableSplit + 5;
+      } else if (event.key === 'Home') {
+        nextSplit = MIN_TABLE_SPLIT;
+      } else if (event.key === 'End') {
+        nextSplit = MAX_TABLE_SPLIT;
+      }
+
+      if (nextSplit == null) return;
+      event.preventDefault();
+      setTableSplit(Math.min(MAX_TABLE_SPLIT, Math.max(MIN_TABLE_SPLIT, nextSplit)));
+    },
+    [tableSplit]
   );
 
   // Resolve contact data for each neighbor in a single pass — used for coords
@@ -222,10 +286,13 @@ export function NeighborsPane({
       ) : sorted.length === 0 ? (
         <p className="text-sm text-muted-foreground">No neighbors reported</p>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col gap-2">
-          <div className="shrink-0 overflow-x-auto">
+        <div ref={splitContainerRef} className="flex min-h-0 flex-1 flex-col gap-2">
+          <div
+            className={cn('overflow-auto', hasValidRepeaterGps ? 'min-h-0' : 'shrink-0')}
+            style={hasValidRepeaterGps ? { flex: `0 1 ${tableSplit}%` } : undefined}
+          >
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-background">
                 <tr className="text-left text-muted-foreground text-xs">
                   <SortableHeader
                     label="Name"
@@ -293,7 +360,31 @@ export function NeighborsPane({
               </tbody>
             </table>
           </div>
-          {hasValidRepeaterGps && (neighborsWithCoords.length > 0 || hasValidRepeaterGps) ? (
+          {hasValidRepeaterGps && (
+            <div
+              role="separator"
+              aria-label="Resize neighbors table and map"
+              aria-orientation="horizontal"
+              aria-valuemin={MIN_TABLE_SPLIT}
+              aria-valuemax={MAX_TABLE_SPLIT}
+              aria-valuenow={Math.round(tableSplit)}
+              aria-valuetext={`${Math.round(tableSplit)}% table height`}
+              tabIndex={0}
+              className={cn(
+                'group relative -my-1 flex h-3 shrink-0 cursor-row-resize touch-none items-center justify-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                isResizing && 'bg-accent'
+              )}
+              title="Drag to resize the neighbors table and map"
+              onKeyDown={handleResizeKeyDown}
+              onPointerDown={handleResizePointerDown}
+              onPointerMove={handleResizePointerMove}
+              onPointerUp={stopResizing}
+              onPointerCancel={stopResizing}
+            >
+              <span className="h-px w-full bg-border transition-colors group-hover:bg-primary group-focus:bg-primary" />
+            </div>
+          )}
+          {hasValidRepeaterGps ? (
             <Suspense
               fallback={
                 <div className="flex min-h-48 flex-1 items-center justify-center text-xs text-muted-foreground">

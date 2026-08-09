@@ -353,6 +353,60 @@ describe('RepeaterDashboard', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('allows resizing the neighbors table and map', async () => {
+    mockHook.loggedIn = true;
+    mockHook.paneData.neighbors = {
+      neighbors: [
+        { pubkey_prefix: 'bbbbbbbbbbbb', name: 'Neighbor', snr: 7.2, last_heard_seconds: 9 },
+      ],
+    };
+    mockHook.paneData.nodeInfo = {
+      name: 'TestRepeater',
+      lat: '-31.9500',
+      lon: '115.8600',
+      clock_utc: null,
+    };
+    mockHook.paneStates.neighbors = {
+      loading: false,
+      attempt: 1,
+      error: null,
+      fetched_at: Date.now(),
+    };
+    mockHook.paneStates.nodeInfo = {
+      loading: false,
+      attempt: 1,
+      error: null,
+      fetched_at: Date.now(),
+    };
+
+    render(<RepeaterDashboard {...defaultProps} />);
+
+    const separator = await screen.findByRole('separator', {
+      name: 'Resize neighbors table and map',
+    });
+    const splitContainer = separator.parentElement!;
+    vi.spyOn(splitContainer, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+      bottom: 500,
+      height: 400,
+      left: 0,
+      right: 100,
+      width: 100,
+      x: 0,
+      y: 100,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    expect(separator).toHaveAttribute('aria-valuenow', '40');
+    fireEvent.pointerDown(separator, { pointerId: 1, clientY: 200 });
+    fireEvent.pointerMove(separator, { pointerId: 1, clientY: 300 });
+    fireEvent.pointerUp(separator, { pointerId: 1, clientY: 300 });
+
+    expect(separator).toHaveAttribute('aria-valuenow', '50');
+    const table = screen.getByRole('columnheader', { name: /last heard/i }).closest('table')!;
+    expect(table.parentElement).toHaveClass('overflow-auto');
+  });
+
   it('uses advert coords for neighbor distance when node info is unavailable', () => {
     mockHook.loggedIn = true;
     mockHook.paneData.neighbors = {
