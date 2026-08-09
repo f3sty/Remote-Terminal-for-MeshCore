@@ -8,12 +8,14 @@ from pydantic import BaseModel, Field
 from app.models import CONTACT_TYPE_REPEATER, AppSettings
 from app.region_scope import normalize_region_scope
 from app.repository import AppSettingsRepository, ChannelRepository, ContactRepository
+from app.services.radio_runtime import radio_runtime as radio_manager
 from app.telemetry_interval import (
     DEFAULT_TELEMETRY_INTERVAL_HOURS,
     TELEMETRY_INTERVAL_OPTIONS_HOURS,
     clamp_telemetry_interval,
     legal_interval_options,
     next_run_timestamp_utc,
+    telemetry_schedule_minute,
 )
 
 logger = logging.getLogger(__name__)
@@ -177,6 +179,9 @@ def _build_schedule(
         else DEFAULT_TELEMETRY_INTERVAL_HOURS
     )
     effective = clamp_telemetry_interval(pref, tracked_count)
+    mc = radio_manager.meshcore
+    self_info = getattr(mc, "self_info", None) if mc is not None else None
+    schedule_minute = telemetry_schedule_minute((self_info or {}).get("public_key"))
     has_tracked = tracked_count > 0
     return TelemetrySchedule(
         preferred_hours=pref,
@@ -184,9 +189,15 @@ def _build_schedule(
         options=legal_interval_options(tracked_count),
         tracked_count=tracked_count,
         max_tracked=MAX_TRACKED_TELEMETRY_REPEATERS,
-        next_run_at=next_run_timestamp_utc(effective) if has_tracked else None,
+        next_run_at=next_run_timestamp_utc(effective, minute=schedule_minute)
+        if has_tracked
+        else None,
         routed_hourly=routed_hourly,
-        next_routed_run_at=(next_run_timestamp_utc(1) if has_tracked and routed_hourly else None),
+        next_routed_run_at=(
+            next_run_timestamp_utc(1, minute=schedule_minute)
+            if has_tracked and routed_hourly
+            else None
+        ),
     )
 
 

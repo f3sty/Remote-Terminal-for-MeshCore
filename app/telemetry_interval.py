@@ -27,6 +27,14 @@ TELEMETRY_INTERVAL_OPTIONS_HOURS: tuple[int, ...] = (1, 2, 3, 4, 6, 8, 12, 24)
 DEFAULT_TELEMETRY_INTERVAL_HOURS = 8
 
 
+def telemetry_schedule_minute(public_key: str | None) -> int:
+    """Derive a stable hourly schedule minute from the local radio identity."""
+    try:
+        return int.from_bytes(bytes.fromhex(public_key[:4]), "big") % 60 if public_key else 0
+    except (TypeError, ValueError):
+        return 0
+
+
 def shortest_legal_interval_hours(n_tracked: int) -> int:
     """Return the shortest interval (hours) that keeps under the daily ceiling.
 
@@ -62,12 +70,16 @@ def legal_interval_options(n_tracked: int) -> list[int]:
     return [h for h in TELEMETRY_INTERVAL_OPTIONS_HOURS if h >= shortest]
 
 
-def next_run_timestamp_utc(effective_hours: int, now: datetime | None = None) -> int:
-    """Return Unix timestamp for the next UTC top-of-hour where
+def next_run_timestamp_utc(
+    effective_hours: int,
+    now: datetime | None = None,
+    minute: int = 0,
+) -> int:
+    """Return Unix timestamp for the next UTC scheduled minute where
     ``hour % effective_hours == 0``.
 
-    Returns the next matching hour strictly in the future (never ``now``
-    itself, even if ``now`` lies exactly on a matching boundary).
+    Returns the next matching schedule boundary strictly in the future (never
+    ``now`` itself, even if ``now`` lies exactly on a matching boundary).
     """
     if effective_hours <= 0:
         effective_hours = DEFAULT_TELEMETRY_INTERVAL_HOURS
@@ -76,13 +88,12 @@ def next_run_timestamp_utc(effective_hours: int, now: datetime | None = None) ->
     else:
         now = now.astimezone(UTC)
 
-    # Round up to the next top-of-hour, then skip forward until the modulo matches.
-    candidate = now.replace(minute=0, second=0, microsecond=0)
-    # Always move at least one hour forward so "now" never matches.
-    candidate = candidate.replace(hour=candidate.hour)
+    # Round up to the next scheduled minute, then skip until the hour modulo matches.
     from datetime import timedelta
 
-    candidate = candidate + timedelta(hours=1)
+    candidate = now.replace(minute=minute % 60, second=0, microsecond=0)
+    if candidate <= now:
+        candidate = candidate + timedelta(hours=1)
     while candidate.hour % effective_hours != 0:
         candidate = candidate + timedelta(hours=1)
     return int(candidate.timestamp())

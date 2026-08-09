@@ -17,6 +17,7 @@ from app.telemetry_interval import (
     legal_interval_options,
     next_run_timestamp_utc,
     shortest_legal_interval_hours,
+    telemetry_schedule_minute,
 )
 
 
@@ -85,6 +86,19 @@ def test_next_run_is_strictly_future_even_on_boundary():
     now = datetime(2026, 4, 16, 8, 0, 0, tzinfo=UTC)
     result = next_run_timestamp_utc(8, now=now)
     expected = datetime(2026, 4, 16, 16, 0, 0, tzinfo=UTC)
+    assert result == int(expected.timestamp())
+
+
+def test_schedule_minute_is_stable_and_derived_from_first_two_key_bytes():
+    assert telemetry_schedule_minute("aabb" + "00" * 30) == int("aabb", 16) % 60
+    assert telemetry_schedule_minute(None) == 0
+    assert telemetry_schedule_minute("not-a-key") == 0
+
+
+def test_next_run_uses_radio_schedule_minute():
+    now = datetime(2026, 4, 16, 14, 37, 0, tzinfo=UTC)
+    result = next_run_timestamp_utc(8, now=now, minute=42)
+    expected = datetime(2026, 4, 16, 16, 42, 0, tzinfo=UTC)
     assert result == int(expected.timestamp())
 
 
