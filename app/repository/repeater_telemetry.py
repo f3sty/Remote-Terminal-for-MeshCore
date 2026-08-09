@@ -6,11 +6,11 @@ from app.database import db
 
 logger = logging.getLogger(__name__)
 
-# Maximum age for telemetry history entries (30 days)
-_MAX_AGE_SECONDS = 30 * 86400
+# Maximum age for telemetry history entries (90 days)
+_MAX_AGE_SECONDS = 90 * 86400
 
 # Maximum entries to keep per repeater (sanity cap)
-_MAX_ENTRIES_PER_REPEATER = 1000
+_MAX_ENTRIES_PER_REPEATER = 2000
 
 
 class RepeaterTelemetryRepository:
@@ -33,7 +33,7 @@ class RepeaterTelemetryRepository:
             ):
                 pass
 
-            # Prune entries older than 30 days
+            # Prune entries older than 90 days
             async with conn.execute(
                 "DELETE FROM repeater_telemetry_history WHERE public_key = ? AND timestamp < ?",
                 (public_key, cutoff),
