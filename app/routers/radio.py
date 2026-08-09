@@ -667,8 +667,10 @@ async def trace_path(request: RadioTraceRequest) -> RadioTraceResponse:
             try:
                 event = await asyncio.wait_for(response_task, timeout=timeout_seconds)
             except TimeoutError as exc:
-                logger.debug("TimeoutError: no trace response heard atfer %ss",timeout_seconds)
-                raise HTTPException(status_code=422, detail=f"No trace response heard after {timeout_seconds:.1f}s") from exc
+                logger.debug("TimeoutError: no trace response heard atfer %ss", timeout_seconds)
+                raise HTTPException(
+                    status_code=422, detail=f"No trace response heard after {timeout_seconds:.1f}s"
+                ) from exc
             elapsed_seconds = max(0.0, _monotonic() - trace_started_at)
         finally:
             if not response_task.done():

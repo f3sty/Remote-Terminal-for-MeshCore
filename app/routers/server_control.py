@@ -335,9 +335,7 @@ async def prepare_authenticated_contact_connection(
         logger.info("Adding %s %s to radio", contact_label, contact.public_key[:12])
         await _ensure_on_radio(mc, contact)
 
-        route_response_timeout = contact_timeout_seconds(
-            contact, flood_timeout=response_timeout
-        )
+        route_response_timeout = contact_timeout_seconds(contact, flood_timeout=response_timeout)
         response = await _attempt_server_login(
             mc,
             contact,
