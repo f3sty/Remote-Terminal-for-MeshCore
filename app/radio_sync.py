@@ -38,6 +38,7 @@ from app.services.contact_reconciliation import (
 )
 from app.services.messages import create_fallback_channel_message
 from app.services.radio_runtime import radio_runtime as radio_manager
+from app.services.route_timeout import contact_timeout_seconds
 from app.telemetry_interval import clamp_telemetry_interval, telemetry_schedule_minute
 from app.websocket import broadcast_error, broadcast_event
 
@@ -1790,7 +1791,11 @@ async def _collect_repeater_telemetry(mc: MeshCore, contact: Contact) -> bool:
     """
     try:
         await mc.commands.add_contact(contact.to_radio_dict())
-        status = await mc.commands.req_status_sync(contact.public_key, timeout=10, min_timeout=5)
+        status = await mc.commands.req_status_sync(
+            contact.public_key,
+            timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
+            min_timeout=5,
+        )
     except Exception as e:
         logger.debug(
             "Telemetry collect: radio command failed for %s: %s",
@@ -1829,7 +1834,9 @@ async def _collect_repeater_telemetry(mc: MeshCore, contact: Contact) -> bool:
     # collection; status telemetry is still recorded without sensor data.
     try:
         lpp_raw = await mc.commands.req_telemetry_sync(
-            contact.public_key, timeout=10, min_timeout=5
+            contact.public_key,
+            timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
+            min_timeout=5,
         )
         if lpp_raw:
             lpp_sensors = []
@@ -1903,7 +1910,9 @@ async def _collect_contact_telemetry(mc: MeshCore, contact: Contact) -> bool:
     try:
         await mc.commands.add_contact(contact.to_radio_dict())
         lpp_raw = await mc.commands.req_telemetry_sync(
-            contact.public_key, timeout=10, min_timeout=5
+            contact.public_key,
+            timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
+            min_timeout=5,
         )
     except Exception as e:
         logger.debug(

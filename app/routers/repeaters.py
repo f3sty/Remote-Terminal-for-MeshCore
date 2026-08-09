@@ -36,6 +36,7 @@ from app.routers.server_control import (
     send_contact_cli_command,
 )
 from app.services.radio_runtime import radio_runtime as radio_manager
+from app.services.route_timeout import contact_timeout_seconds
 
 logger = logging.getLogger(__name__)
 
@@ -104,13 +105,18 @@ async def repeater_status(public_key: str) -> RepeaterStatusResponse:
         # Ensure contact is on radio for routing
         await _ensure_on_radio(mc, contact)
 
-        status = await mc.commands.req_status_sync(contact.public_key, timeout=10, min_timeout=5)
+        timeout = contact_timeout_seconds(contact, flood_timeout=10.0)
+        status = await mc.commands.req_status_sync(
+            contact.public_key, timeout=timeout, min_timeout=5
+        )
 
         # Best-effort LPP sensor fetch while we still hold the lock
         if status is not None:
             try:
                 lpp_raw = await mc.commands.req_telemetry_sync(
-                    contact.public_key, timeout=10, min_timeout=5
+                    contact.public_key,
+                    timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
+                    min_timeout=5,
                 )
             except Exception as e:
                 logger.debug("LPP sensor fetch failed for %s (non-fatal): %s", public_key[:12], e)
@@ -221,7 +227,9 @@ async def repeater_lpp_telemetry(public_key: str) -> RepeaterLppTelemetryRespons
         await _ensure_on_radio(mc, contact)
 
         telemetry = await mc.commands.req_telemetry_sync(
-            contact.public_key, timeout=10, min_timeout=5
+            contact.public_key,
+            timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
+            min_timeout=5,
         )
 
     if telemetry is None:
@@ -251,7 +259,9 @@ async def repeater_neighbors(public_key: str) -> RepeaterNeighborsResponse:
         await _ensure_on_radio(mc, contact)
 
         neighbors_data = await mc.commands.fetch_all_neighbours(
-            contact.public_key, timeout=10, min_timeout=5
+            contact.public_key,
+            timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
+            min_timeout=5,
         )
 
     neighbors: list[NeighborInfo] = []
@@ -285,7 +295,11 @@ async def repeater_acl(public_key: str) -> RepeaterAclResponse:
         # Ensure contact is on radio for routing
         await _ensure_on_radio(mc, contact)
 
-        acl_data = await mc.commands.req_acl_sync(contact.public_key, timeout=10, min_timeout=5)
+        acl_data = await mc.commands.req_acl_sync(
+            contact.public_key,
+            timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
+            min_timeout=5,
+        )
 
     acl_entries: list[AclEntry] = []
     if acl_data and isinstance(acl_data, list):
@@ -506,7 +520,11 @@ async def request_anon_region_names(mc, contact: Contact) -> list[str] | None:
     try:
         await _ensure_on_radio(mc, contact)
         await asyncio.sleep(1.0)  # settle after add_contact
-        names = await mc.commands.req_regions_sync(contact.public_key, timeout=10, min_timeout=5)
+        names = await mc.commands.req_regions_sync(
+            contact.public_key,
+            timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
+            min_timeout=5,
+        )
     except Exception as exc:
         logger.debug("anon regions request failed for %s: %s", contact.public_key[:12], exc)
         return None

@@ -16,6 +16,7 @@ from app.routers.server_control import (
     require_server_capable_contact,
 )
 from app.services.radio_runtime import radio_runtime as radio_manager
+from app.services.route_timeout import contact_timeout_seconds
 
 router = APIRouter(prefix="/contacts", tags=["rooms"])
 
@@ -55,7 +56,11 @@ async def room_status(public_key: str) -> RepeaterStatusResponse:
         "room_status", pause_polling=True, suspend_auto_fetch=True
     ) as mc:
         await _ensure_on_radio(mc, contact)
-        status = await mc.commands.req_status_sync(contact.public_key, timeout=10, min_timeout=5)
+        status = await mc.commands.req_status_sync(
+            contact.public_key,
+            timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
+            min_timeout=5,
+        )
 
     if status is None:
         raise HTTPException(status_code=408, detail="No status response from room server")
@@ -94,7 +99,9 @@ async def room_lpp_telemetry(public_key: str) -> RepeaterLppTelemetryResponse:
     ) as mc:
         await _ensure_on_radio(mc, contact)
         telemetry = await mc.commands.req_telemetry_sync(
-            contact.public_key, timeout=10, min_timeout=5
+            contact.public_key,
+            timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
+            min_timeout=5,
         )
 
     if telemetry is None:
@@ -122,7 +129,11 @@ async def room_acl(public_key: str) -> RepeaterAclResponse:
         "room_acl", pause_polling=True, suspend_auto_fetch=True
     ) as mc:
         await _ensure_on_radio(mc, contact)
-        acl_data = await mc.commands.req_acl_sync(contact.public_key, timeout=10, min_timeout=5)
+        acl_data = await mc.commands.req_acl_sync(
+            contact.public_key,
+            timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
+            min_timeout=5,
+        )
 
     acl_entries = []
     if acl_data and isinstance(acl_data, list):

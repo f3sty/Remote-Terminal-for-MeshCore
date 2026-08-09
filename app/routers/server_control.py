@@ -21,6 +21,7 @@ from app.radio_sync import (
 )
 from app.routers.contacts import _ensure_on_radio
 from app.services.radio_runtime import radio_runtime as radio_manager
+from app.services.route_timeout import contact_timeout_seconds
 
 if TYPE_CHECKING:
     from meshcore.events import Event
@@ -334,12 +335,13 @@ async def prepare_authenticated_contact_connection(
         logger.info("Adding %s %s to radio", contact_label, contact.public_key[:12])
         await _ensure_on_radio(mc, contact)
 
+        route_response_timeout = contact_timeout_seconds(contact, flood_timeout=response_timeout)
         response = await _attempt_server_login(
             mc,
             contact,
             password,
             contact_label=contact_label,
-            response_timeout=response_timeout,
+            response_timeout=route_response_timeout,
         )
         if response.status != "timeout":
             return response
@@ -380,6 +382,7 @@ async def prepare_authenticated_contact_connection(
             contact,
             password,
             contact_label=contact_label,
+            # Flood has no bounded hop count, so use the original baseline.
             response_timeout=response_timeout,
         )
         if flood_response.status == "timeout":
@@ -440,7 +443,9 @@ async def batch_cli_fetch(
                 continue
 
             response_event = await fetch_contact_cli_response(
-                mc, contact.public_key[:12], timeout=10.0
+                mc,
+                contact.public_key[:12],
+                timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
             )
             if response_event is not None:
                 results[field] = extract_response_text(response_event)
@@ -512,10 +517,11 @@ async def fetch_repeater_owner_info_binary(
         await _ensure_on_radio(mc, contact)
         await asyncio.sleep(1.0)  # settle after add_contact
 
+        request_timeout = contact_timeout_seconds(contact, flood_timeout=timeout)
         send_result = await mc.commands.send_binary_req(
             contact.public_key,
             _RepeaterBinaryReqType.OWNER_INFO,
-            timeout=timeout,
+            timeout=request_timeout,
             min_timeout=min_timeout,
         )
         if send_result.type == EventType.ERROR:
@@ -529,7 +535,9 @@ async def fetch_repeater_owner_info_binary(
         exp_tag = expected_ack.hex()
 
         wait_timeout = (
-            timeout if timeout > 0 else send_result.payload.get("suggested_timeout", 4000) / 800
+            request_timeout
+            if request_timeout > 0
+            else send_result.payload.get("suggested_timeout", 4000) / 800
         )
         wait_timeout = max(wait_timeout, min_timeout)
 
@@ -579,7 +587,11 @@ async def send_contact_cli_command(
                 status_code=422, detail=f"Failed to send command: {send_result.payload}"
             )
 
-        response_event = await fetch_contact_cli_response(mc, contact.public_key[:12])
+        response_event = await fetch_contact_cli_response(
+            mc,
+            contact.public_key[:12],
+            timeout=contact_timeout_seconds(contact, flood_timeout=20.0),
+        )
 
         if response_event is None:
             logger.warning(
