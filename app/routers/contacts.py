@@ -38,6 +38,7 @@ from app.services.contact_reconciliation import (
     record_contact_name_and_reconcile,
 )
 from app.services.radio_runtime import radio_runtime as radio_manager
+from app.services.route_timeout import contact_timeout_seconds
 from app.services.trace_timeout import trace_timeout_seconds
 
 logger = logging.getLogger(__name__)
@@ -504,7 +505,7 @@ async def request_path_discovery(public_key: str) -> PathDiscoveryResponse:
             mc.wait_for_event(
                 EventType.PATH_RESPONSE,
                 attribute_filters={"pubkey_pre": pubkey_prefix},
-                timeout=15,
+                timeout=contact_timeout_seconds(contact, flood_timeout=15.0),
             )
         )
         try:
@@ -642,7 +643,9 @@ async def request_contact_telemetry(public_key: str) -> ContactTelemetryResponse
     ) as mc:
         await _ensure_on_radio(mc, contact)
         telemetry = await mc.commands.req_telemetry_sync(
-            contact.public_key, timeout=10, min_timeout=5
+            contact.public_key,
+            timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
+            min_timeout=5,
         )
 
     if telemetry is None:
