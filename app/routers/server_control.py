@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-SERVER_LOGIN_RESPONSE_TIMEOUT_SECONDS = 5.0
+SERVER_LOGIN_RESPONSE_TIMEOUT_SECONDS = 10.0
 
 
 def _monotonic() -> float:

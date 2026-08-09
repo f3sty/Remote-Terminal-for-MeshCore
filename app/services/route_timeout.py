@@ -8,8 +8,8 @@ from app.models import Contact
 # A request has to reach the contact and its response has to return.  Keep a
 # full ten-second allowance per physical hop so a known one-hop route does not
 # collide with the old ten-second operation ceiling.
-ROUTE_TIMEOUT_HOP_SECONDS = 10.0
-ROUTE_TIMEOUT_MAX_SECONDS = 60.0
+ROUTE_TIMEOUT_HOP_SECONDS = 5.0
+ROUTE_TIMEOUT_MAX_SECONDS = 30.0
 
 
 def contact_timeout_seconds(
