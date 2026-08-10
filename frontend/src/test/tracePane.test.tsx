@@ -262,6 +262,7 @@ describe('TracePane', () => {
       async (): Promise<RadioTraceResponse> => ({
         path_len: 0,
         timeout_seconds: 6,
+        elapsed_seconds: 1.2,
         nodes: [],
       })
     );
