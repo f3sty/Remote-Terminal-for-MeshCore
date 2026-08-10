@@ -2748,8 +2748,8 @@ class TestHistoricalChannelDecryptIntegration:
         ciphertext = _AES.new(channel_key, _AES.MODE_ECB).encrypt(plaintext)
 
         # MAC: HMAC-SHA256(channel_secret, ciphertext)[:2]
-        channel_secret = channel_key + bytes(16)
-        mac = _hmac.new(channel_secret, ciphertext, _hashlib.sha256).digest()[:2]
+        # The channel secret is the same 16-byte value used as the AES key.
+        mac = _hmac.new(channel_key, ciphertext, _hashlib.sha256).digest()[:2]
 
         # channel_hash: first byte of SHA256(key)
         channel_hash = _hashlib.sha256(channel_key).digest()[0:1]

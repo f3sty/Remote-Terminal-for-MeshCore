@@ -228,8 +228,8 @@ class TestGroupTextDecryption:
         ciphertext = cipher.encrypt(plaintext)
 
         # Calculate MAC: HMAC-SHA256(channel_secret, ciphertext)[:2]
-        channel_secret = channel_key + bytes(16)
-        mac = hmac.new(channel_secret, ciphertext, hashlib.sha256).digest()[:2]
+        # The channel secret is the same 16-byte value used as the AES key.
+        mac = hmac.new(channel_key, ciphertext, hashlib.sha256).digest()[:2]
 
         # Build payload: channel_hash(1) + mac(2) + ciphertext
         channel_hash = hashlib.sha256(channel_key).digest()[0:1]

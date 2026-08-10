@@ -180,11 +180,9 @@ def decrypt_group_text(payload: bytes, channel_key: bytes) -> DecryptedGroupText
         # AES requires 16-byte blocks
         return None
 
-    # Create the 32-byte channel secret (key + 16 zero bytes)
-    channel_secret = channel_key + bytes(16)
-
-    # Verify MAC: HMAC-SHA256 of ciphertext using full 32-byte secret
-    calculated_mac = hmac.new(channel_secret, ciphertext, hashlib.sha256).digest()
+    # The radio's channel secret is the same 16-byte value used as the AES key.
+    # MeshCore truncates HMAC-SHA256(channel_secret, ciphertext) to two bytes.
+    calculated_mac = hmac.new(channel_key, ciphertext, hashlib.sha256).digest()
     if calculated_mac[:2] != cipher_mac:
         return None
 
