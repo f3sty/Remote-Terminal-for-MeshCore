@@ -145,7 +145,7 @@ class BotModule(FanoutModule):
         scoped = data.get("transport_code") is not None
 
         # Wait for message to settle (allows retransmissions to be deduped)
-        await asyncio.sleep(2)
+        await asyncio.sleep(15)
 
         # Execute bot code in thread pool with timeout
         from app.fanout.bot_exec import _bot_executor, _bot_semaphore
