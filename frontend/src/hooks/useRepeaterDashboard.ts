@@ -372,6 +372,33 @@ export function useRepeaterDashboard(
           const data = await fetchPaneData(publicKey, pane);
           if (!mountedRef.current || activeIdRef.current !== conversationId) return;
 
+          if (
+            pane === 'neighbors' &&
+            'fetch_status' in data &&
+            data.fetch_status === 'failed'
+          ) {
+            if (attempt === MAX_RETRIES) {
+              const errorState = {
+                loading: false,
+                attempt,
+                error: 'No neighbor response received',
+                fetched_at: paneStatesRef.current[pane].fetched_at ?? null,
+              };
+              paneStatesRef.current = {
+                ...paneStatesRef.current,
+                [pane]: errorState,
+              };
+              setPaneStates((prev) => ({
+                ...prev,
+                [pane]: errorState,
+              }));
+              toast.error(`Failed to fetch ${pane}`, { description: errorState.error });
+            } else {
+              await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+            }
+            continue;
+          }
+
           paneDataRef.current = {
             ...paneDataRef.current,
             [pane]: data,

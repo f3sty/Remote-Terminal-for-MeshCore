@@ -264,8 +264,11 @@ async def repeater_neighbors(public_key: str) -> RepeaterNeighborsResponse:
             min_timeout=5,
         )
 
+    if neighbors_data is None:
+        return RepeaterNeighborsResponse(neighbors=[], fetch_status="failed")
+
     neighbors: list[NeighborInfo] = []
-    if neighbors_data and "neighbours" in neighbors_data:
+    if "neighbours" in neighbors_data:
         for n in neighbors_data["neighbours"]:
             pubkey_prefix = n.get("pubkey", "")
             resolved_contact = await ContactRepository.get_by_key_prefix(pubkey_prefix)
@@ -278,8 +281,22 @@ async def repeater_neighbors(public_key: str) -> RepeaterNeighborsResponse:
                 )
             )
 
-    reported_count = neighbors_data.get("neighbours_count") if neighbors_data else None
-    return RepeaterNeighborsResponse(neighbors=neighbors, reported_count=reported_count)
+    reported_count = neighbors_data.get("neighbours_count")
+    results_count = neighbors_data.get("results_count")
+    fetch_status = (
+        "partial"
+        if (
+            reported_count is not None
+            and results_count is not None
+            and results_count < reported_count
+        )
+        else "complete"
+    )
+    return RepeaterNeighborsResponse(
+        neighbors=neighbors,
+        fetch_status=fetch_status,
+        reported_count=reported_count,
+    )
 
 
 @router.post("/{public_key}/repeater/acl", response_model=RepeaterAclResponse)

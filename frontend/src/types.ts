@@ -482,9 +482,10 @@ export interface RepeaterStatusResponse {
 
 export interface RepeaterNeighborsResponse {
   neighbors: NeighborInfo[];
+  fetch_status?: 'complete' | 'partial' | 'failed';
   // Total neighbor count reported by the repeater firmware, independent of how many
   // entries were actually returned. Exceeds neighbors.length when a multi-chunk fetch
-  // is incomplete. Null on older firmware / failed fetches.
+  // is incomplete. Null on older firmware. A failed fetch is represented by fetch_status.
   reported_count?: number | null;
 }
 

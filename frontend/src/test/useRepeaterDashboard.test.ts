@@ -221,6 +221,35 @@ describe('useRepeaterDashboard', () => {
     expect(result.current.paneStates.status.error).toBe(null);
   });
 
+  it('retries failed neighbor responses and retains the previous list', async () => {
+    const neighbors = {
+      neighbors: [{ pubkey_prefix: 'aabb', name: 'Neighbor', snr: 4, last_heard_seconds: 2 }],
+      fetch_status: 'complete' as const,
+    };
+    mockApi.repeaterNeighbors.mockResolvedValueOnce(neighbors);
+
+    const { result } = renderHook(() =>
+      useRepeaterDashboard(repeaterConversation, { hasAdvertLocation: true })
+    );
+
+    await act(async () => {
+      await result.current.refreshPane('neighbors');
+    });
+
+    mockApi.repeaterNeighbors.mockResolvedValue({
+      neighbors: [],
+      fetch_status: 'failed',
+    });
+
+    await act(async () => {
+      await result.current.refreshPane('neighbors');
+    });
+
+    expect(mockApi.repeaterNeighbors).toHaveBeenCalledTimes(4);
+    expect(result.current.paneData.neighbors).toEqual(neighbors);
+    expect(result.current.paneStates.neighbors.error).toBe('No neighbor response received');
+  });
+
   it('sendConsoleCommand adds entries to console history', async () => {
     mockApi.sendRepeaterCommand.mockResolvedValueOnce({
       command: 'ver',

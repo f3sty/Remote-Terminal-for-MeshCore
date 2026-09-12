@@ -727,6 +727,10 @@ class RepeaterNeighborsResponse(BaseModel):
     neighbors: list[NeighborInfo] = Field(
         default_factory=list, description="List of neighbors seen by repeater"
     )
+    fetch_status: Literal["complete", "partial", "failed"] = Field(
+        default="complete",
+        description="Whether the neighbor fetch completed, was partial, or failed",
+    )
     reported_count: int | None = Field(
         default=None,
         description=(

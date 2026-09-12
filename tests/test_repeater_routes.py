@@ -1155,6 +1155,7 @@ class TestRepeaterNeighbors:
         assert response.neighbors[0].snr == 9.0
         assert response.neighbors[1].name is None
         assert response.neighbors[1].last_heard_seconds == 120
+        assert response.fetch_status == "complete"
         # No firmware-reported total in this payload → reported_count stays None.
         assert response.reported_count is None
 
@@ -1184,6 +1185,7 @@ class TestRepeaterNeighbors:
 
         assert len(response.neighbors) == 2
         assert response.reported_count == 30
+        assert response.fetch_status == "partial"
 
     @pytest.mark.asyncio
     async def test_empty_neighbors(self, test_db):
@@ -1200,7 +1202,7 @@ class TestRepeaterNeighbors:
         assert response.neighbors == []
 
     @pytest.mark.asyncio
-    async def test_timeout_returns_empty(self, test_db):
+    async def test_timeout_returns_failed_status_without_clearing_as_success(self, test_db):
         mc = _mock_mc()
         await _insert_contact(KEY_A, name="Repeater", contact_type=2)
         mc.commands.fetch_all_neighbours = AsyncMock(return_value=None)
@@ -1212,6 +1214,7 @@ class TestRepeaterNeighbors:
             response = await repeater_neighbors(KEY_A)
 
         assert response.neighbors == []
+        assert response.fetch_status == "failed"
 
 
 class TestRepeaterAcl:

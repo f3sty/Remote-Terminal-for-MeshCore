@@ -263,7 +263,9 @@ Web Push is a standalone subsystem in `app/push/`, separate from the fanout modu
 - `POST /contacts/{public_key}/repeater/login` — one attempt on the effective route, then one flood retry on timeout
 - `POST /contacts/{public_key}/repeater/status`
 - `POST /contacts/{public_key}/repeater/lpp-telemetry`
-- `POST /contacts/{public_key}/repeater/neighbors`
+- `POST /contacts/{public_key}/repeater/neighbors` — returns `fetch_status` (`complete`,
+  `partial`, or `failed`); failed fetches remain HTTP 200 so the frontend can retry in a
+  bounded manner without replacing previously fetched neighbors.
 - `POST /contacts/{public_key}/repeater/acl`
 - `POST /contacts/{public_key}/repeater/node-info`
 - `POST /contacts/{public_key}/repeater/radio-settings`
