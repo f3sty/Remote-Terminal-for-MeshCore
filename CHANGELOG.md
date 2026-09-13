@@ -1,3 +1,13 @@
+## [3.17.1-dev2] - 2026-09-13
+
+* Feature: Update/append a repeater's neighbor list on fetch.
+           This allows for tracking more neighbors than the repeater's
+           firmware can hold.
+           Neighbors are pruned when repeater last reboot time < last heard,
+           or the list can be purged manually.
+* Bug: Improve repeater neighbor fetching (retry and error handling)
+* Misc: Increase bot per-message reply delay, to reduce local repeater collisions
+
 ## [3.17.1-dev1] - 2026-08-09
 
 * Feature: Drag to re-order sidebar categories
