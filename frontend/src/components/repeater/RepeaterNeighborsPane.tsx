@@ -75,6 +75,7 @@ export function NeighborsPane({
   data,
   state,
   onRefresh,
+  onClear,
   disabled,
   repeaterContact,
   contacts,
@@ -85,6 +86,7 @@ export function NeighborsPane({
   data: RepeaterNeighborsResponse | null;
   state: PaneState;
   onRefresh: () => void;
+  onClear: () => void;
   disabled?: boolean;
   repeaterContact: Contact | null;
   contacts: Contact[];
@@ -277,6 +279,18 @@ export function NeighborsPane({
       headerNote={headerNote}
       state={state}
       onRefresh={onRefresh}
+      headerActions={
+        <button
+          type="button"
+          onClick={onClear}
+          disabled={disabled || state.loading || !data}
+          className="rounded px-1.5 py-0.5 text-[0.6875rem] text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          title="Clear accumulated neighbors"
+          aria-label="Clear neighbors"
+        >
+          Clear
+        </button>
+      }
       disabled={disabled}
       className="flex min-h-0 flex-1 flex-col"
       contentClassName="flex min-h-0 flex-1 flex-col"

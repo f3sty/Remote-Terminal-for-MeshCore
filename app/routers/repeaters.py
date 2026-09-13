@@ -26,7 +26,11 @@ from app.models import (
     RepeaterStatusResponse,
     TelemetryHistoryEntry,
 )
-from app.repository import ContactRepository, RepeaterTelemetryRepository
+from app.repository import (
+    ContactRepository,
+    RepeaterNeighborRepository,
+    RepeaterTelemetryRepository,
+)
 from app.routers.contacts import _ensure_on_radio, _resolve_contact_or_404
 from app.routers.server_control import (
     batch_cli_fetch,
@@ -267,19 +271,33 @@ async def repeater_neighbors(public_key: str) -> RepeaterNeighborsResponse:
     if neighbors_data is None:
         return RepeaterNeighborsResponse(neighbors=[], fetch_status="failed")
 
+    now = int(time.time())
+    boot_time = None
+    latest_telemetry = await RepeaterTelemetryRepository.get_latest(contact.public_key)
+    if latest_telemetry:
+        uptime = latest_telemetry["data"].get("uptime_seconds")
+        if isinstance(uptime, (int, float)) and uptime > 0:
+            boot_time = latest_telemetry["timestamp"] - int(uptime)
+
+    stored_neighbors = await RepeaterNeighborRepository.merge_and_get(
+        public_key=contact.public_key,
+        neighbors=neighbors_data.get("neighbours", []),
+        observed_at=now,
+        boot_time=boot_time,
+    )
+
     neighbors: list[NeighborInfo] = []
-    if "neighbours" in neighbors_data:
-        for n in neighbors_data["neighbours"]:
-            pubkey_prefix = n.get("pubkey", "")
-            resolved_contact = await ContactRepository.get_by_key_prefix(pubkey_prefix)
-            neighbors.append(
-                NeighborInfo(
-                    pubkey_prefix=pubkey_prefix,
-                    name=resolved_contact.name if resolved_contact else None,
-                    snr=n.get("snr", 0.0),
-                    last_heard_seconds=n.get("secs_ago", 0),
-                )
+    for n in stored_neighbors:
+        pubkey_prefix = n["pubkey"]
+        resolved_contact = await ContactRepository.get_by_key_prefix(pubkey_prefix)
+        neighbors.append(
+            NeighborInfo(
+                pubkey_prefix=pubkey_prefix,
+                name=resolved_contact.name if resolved_contact else None,
+                snr=n["snr"],
+                last_heard_seconds=max(0, now - n["last_heard_at"]),
             )
+        )
 
     reported_count = neighbors_data.get("neighbours_count")
     results_count = neighbors_data.get("results_count")
@@ -295,8 +313,19 @@ async def repeater_neighbors(public_key: str) -> RepeaterNeighborsResponse:
     return RepeaterNeighborsResponse(
         neighbors=neighbors,
         fetch_status=fetch_status,
-        reported_count=reported_count,
+        reported_count=(
+            max(reported_count, len(neighbors)) if reported_count is not None else None
+        ),
     )
+
+
+@router.delete("/{public_key}/repeater/neighbors")
+async def clear_repeater_neighbors(public_key: str) -> dict[str, str]:
+    """Clear the locally accumulated neighbor history for a repeater."""
+    contact = await _resolve_contact_or_404(public_key)
+    _require_repeater(contact)
+    await RepeaterNeighborRepository.clear(contact.public_key)
+    return {"status": "ok"}
 
 
 @router.post("/{public_key}/repeater/acl", response_model=RepeaterAclResponse)

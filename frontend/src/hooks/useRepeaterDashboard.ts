@@ -202,6 +202,7 @@ export interface UseRepeaterDashboardResult {
   sendFloodAdvert: () => Promise<void>;
   rebootRepeater: () => Promise<void>;
   syncClock: () => Promise<void>;
+  clearNeighbors: () => Promise<void>;
 }
 
 interface UseRepeaterDashboardOptions {
@@ -372,11 +373,7 @@ export function useRepeaterDashboard(
           const data = await fetchPaneData(publicKey, pane);
           if (!mountedRef.current || activeIdRef.current !== conversationId) return;
 
-          if (
-            pane === 'neighbors' &&
-            'fetch_status' in data &&
-            data.fetch_status === 'failed'
-          ) {
+          if (pane === 'neighbors' && 'fetch_status' in data && data.fetch_status === 'failed') {
             if (attempt === MAX_RETRIES) {
               const errorState = {
                 loading: false,
@@ -450,6 +447,22 @@ export function useRepeaterDashboard(
     },
     [getPublicKey, options.hasAdvertLocation]
   );
+
+  const clearNeighbors = useCallback(async () => {
+    const publicKey = getPublicKey();
+    if (!publicKey) return;
+    await api.clearRepeaterNeighbors(publicKey);
+    const nextData = { ...paneDataRef.current, neighbors: null };
+    const nextStates = {
+      ...paneStatesRef.current,
+      neighbors: { ...INITIAL_PANE_STATE },
+    };
+    paneDataRef.current = nextData;
+    paneStatesRef.current = nextStates;
+    setPaneData(nextData);
+    setPaneStates(nextStates);
+    toast.success('Neighbor list cleared');
+  }, [getPublicKey]);
 
   const loadAll = useCallback(async () => {
     const panes: PaneName[] = [
@@ -548,5 +561,6 @@ export function useRepeaterDashboard(
     sendFloodAdvert,
     rebootRepeater,
     syncClock,
+    clearNeighbors,
   };
 }

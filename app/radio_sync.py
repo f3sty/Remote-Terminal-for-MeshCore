@@ -1793,7 +1793,7 @@ async def _collect_repeater_telemetry(mc: MeshCore, contact: Contact) -> bool:
         await mc.commands.add_contact(contact.to_radio_dict())
         status = await mc.commands.req_status_sync(
             contact.public_key,
-            timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
+            timeout=int(contact_timeout_seconds(contact, flood_timeout=10.0)),
             min_timeout=5,
         )
     except Exception as e:
@@ -1835,7 +1835,7 @@ async def _collect_repeater_telemetry(mc: MeshCore, contact: Contact) -> bool:
     try:
         lpp_raw = await mc.commands.req_telemetry_sync(
             contact.public_key,
-            timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
+            timeout=int(contact_timeout_seconds(contact, flood_timeout=10.0)),
             min_timeout=5,
         )
         if lpp_raw:
@@ -1911,7 +1911,7 @@ async def _collect_contact_telemetry(mc: MeshCore, contact: Contact) -> bool:
         await mc.commands.add_contact(contact.to_radio_dict())
         lpp_raw = await mc.commands.req_telemetry_sync(
             contact.public_key,
-            timeout=contact_timeout_seconds(contact, flood_timeout=10.0),
+            timeout=int(contact_timeout_seconds(contact, flood_timeout=10.0)),
             min_timeout=5,
         )
     except Exception as e:

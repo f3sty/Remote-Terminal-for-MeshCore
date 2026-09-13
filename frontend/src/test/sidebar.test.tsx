@@ -299,18 +299,20 @@ describe('Sidebar section summaries', () => {
     fireEvent.drop(channelsHeader, { dataTransfer });
 
     expect(
-      screen.getByRole('button', { name: 'Room Servers' }).compareDocumentPosition(
-        screen.getByRole('button', { name: 'Channels' })
-      ) & Node.DOCUMENT_POSITION_FOLLOWING
+      screen
+        .getByRole('button', { name: 'Room Servers' })
+        .compareDocumentPosition(screen.getByRole('button', { name: 'Channels' })) &
+        Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
 
     unmount();
     renderSidebar();
 
     expect(
-      screen.getByRole('button', { name: 'Room Servers' }).compareDocumentPosition(
-        screen.getByRole('button', { name: 'Channels' })
-      ) & Node.DOCUMENT_POSITION_FOLLOWING
+      screen
+        .getByRole('button', { name: 'Room Servers' })
+        .compareDocumentPosition(screen.getByRole('button', { name: 'Channels' })) &
+        Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
   });
 

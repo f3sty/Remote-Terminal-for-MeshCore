@@ -8,12 +8,17 @@ from meshcore import EventType
 
 from app.models import CommandRequest, Contact, RepeaterLoginRequest, RepeaterLoginResponse
 from app.radio import radio_manager
-from app.repository import ContactRepository
+from app.repository import (
+    ContactRepository,
+    RepeaterNeighborRepository,
+    RepeaterTelemetryRepository,
+)
 from app.routers.contacts import request_trace
 from app.routers.repeaters import (
     _batch_cli_fetch,
     _parse_anon_region_names,
     _parse_region_dump,
+    clear_repeater_neighbors,
     prepare_repeater_connection,
     repeater_acl,
     repeater_advert_intervals,
@@ -1215,6 +1220,81 @@ class TestRepeaterNeighbors:
 
         assert response.neighbors == []
         assert response.fetch_status == "failed"
+
+    @pytest.mark.asyncio
+    async def test_successful_fetch_merges_and_updates_neighbors(self, test_db):
+        mc = _mock_mc()
+        await _insert_contact(KEY_A, name="Repeater", contact_type=2)
+        mc.commands.fetch_all_neighbours = AsyncMock(
+            side_effect=[
+                {"neighbours": [{"pubkey": "aaaaaaaaaaaa", "snr": 1.0, "secs_ago": 30}]},
+                {
+                    "neighbours": [
+                        {"pubkey": "aaaaaaaaaaaa", "snr": 8.0, "secs_ago": 5},
+                        {"pubkey": "bbbbbbbbbbbb", "snr": 3.0, "secs_ago": 10},
+                    ]
+                },
+            ]
+        )
+
+        with (
+            patch("app.routers.repeaters.radio_manager.require_connected", return_value=mc),
+            patch.object(radio_manager, "_meshcore", mc),
+            patch("app.routers.repeaters.time.time", side_effect=[1000, 1100]),
+        ):
+            await repeater_neighbors(KEY_A)
+            response = await repeater_neighbors(KEY_A)
+
+        assert {n.pubkey_prefix for n in response.neighbors} == {"aaaaaaaaaaaa", "bbbbbbbbbbbb"}
+        updated = next(n for n in response.neighbors if n.pubkey_prefix == "aaaaaaaaaaaa")
+        assert updated.snr == 8.0
+        assert updated.last_heard_seconds == 5
+
+    @pytest.mark.asyncio
+    async def test_clear_neighbors_deletes_accumulated_history(self, test_db):
+        mc = _mock_mc()
+        await _insert_contact(KEY_A, name="Repeater", contact_type=2)
+        mc.commands.fetch_all_neighbours = AsyncMock(
+            return_value={"neighbours": [{"pubkey": "aaaaaaaaaaaa", "snr": 1.0, "secs_ago": 0}]}
+        )
+
+        with (
+            patch("app.routers.repeaters.radio_manager.require_connected", return_value=mc),
+            patch.object(radio_manager, "_meshcore", mc),
+        ):
+            await repeater_neighbors(KEY_A)
+            result = await clear_repeater_neighbors(KEY_A)
+            stored = await RepeaterNeighborRepository.get(KEY_A, observed_at=1000)
+
+        assert result == {"status": "ok"}
+        assert stored == []
+
+    @pytest.mark.asyncio
+    async def test_uptime_prunes_neighbors_heard_before_boot(self, test_db):
+        mc = _mock_mc()
+        await _insert_contact(KEY_A, name="Repeater", contact_type=2)
+        mc.commands.fetch_all_neighbours = AsyncMock(
+            return_value={
+                "neighbours": [
+                    {"pubkey": "aaaaaaaaaaaa", "snr": 1.0, "secs_ago": 250},
+                    {"pubkey": "bbbbbbbbbbbb", "snr": 2.0, "secs_ago": 50},
+                ]
+            }
+        )
+
+        with (
+            patch("app.routers.repeaters.radio_manager.require_connected", return_value=mc),
+            patch.object(radio_manager, "_meshcore", mc),
+            patch("app.routers.repeaters.time.time", return_value=1100),
+            patch.object(
+                RepeaterTelemetryRepository,
+                "get_latest",
+                new=AsyncMock(return_value={"timestamp": 1000, "data": {"uptime_seconds": 100}}),
+            ),
+        ):
+            response = await repeater_neighbors(KEY_A)
+
+        assert [n.pubkey_prefix for n in response.neighbors] == ["bbbbbbbbbbbb"]
 
 
 class TestRepeaterAcl:

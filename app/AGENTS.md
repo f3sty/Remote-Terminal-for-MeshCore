@@ -265,7 +265,11 @@ Web Push is a standalone subsystem in `app/push/`, separate from the fanout modu
 - `POST /contacts/{public_key}/repeater/lpp-telemetry`
 - `POST /contacts/{public_key}/repeater/neighbors` — returns `fetch_status` (`complete`,
   `partial`, or `failed`); failed fetches remain HTTP 200 so the frontend can retry in a
-  bounded manner without replacing previously fetched neighbors.
+  bounded manner without replacing previously fetched neighbors. Successful fetches merge
+  into persisted neighbor history, and known repeater uptime prunes entries heard before
+  the repeater's last boot.
+- `DELETE /contacts/{public_key}/repeater/neighbors` — clears locally accumulated neighbor
+  history without changing the repeater's remote neighbor table.
 - `POST /contacts/{public_key}/repeater/acl`
 - `POST /contacts/{public_key}/repeater/node-info`
 - `POST /contacts/{public_key}/repeater/radio-settings`

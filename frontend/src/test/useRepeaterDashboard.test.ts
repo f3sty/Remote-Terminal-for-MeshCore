@@ -14,6 +14,7 @@ vi.mock('../api', () => ({
     repeaterStatus: vi.fn(),
     repeaterNodeInfo: vi.fn(),
     repeaterNeighbors: vi.fn(),
+    clearRepeaterNeighbors: vi.fn(),
     repeaterAcl: vi.fn(),
     repeaterRadioSettings: vi.fn(),
     repeaterAdvertIntervals: vi.fn(),
@@ -248,6 +249,25 @@ describe('useRepeaterDashboard', () => {
     expect(mockApi.repeaterNeighbors).toHaveBeenCalledTimes(4);
     expect(result.current.paneData.neighbors).toEqual(neighbors);
     expect(result.current.paneStates.neighbors.error).toBe('No neighbor response received');
+  });
+
+  it('clears the stored neighbor list and resets the pane', async () => {
+    const neighbors = {
+      neighbors: [{ pubkey_prefix: 'aabb', name: 'Neighbor', snr: 4, last_heard_seconds: 2 }],
+      fetch_status: 'complete' as const,
+    };
+    mockApi.repeaterNeighbors.mockResolvedValueOnce(neighbors);
+    mockApi.clearRepeaterNeighbors.mockResolvedValueOnce({ status: 'ok' });
+
+    const { result } = renderHook(() => useRepeaterDashboard(repeaterConversation));
+    await act(async () => {
+      await result.current.refreshPane('neighbors');
+      await result.current.clearNeighbors();
+    });
+
+    expect(mockApi.clearRepeaterNeighbors).toHaveBeenCalledWith(REPEATER_KEY);
+    expect(result.current.paneData.neighbors).toBe(null);
+    expect(result.current.paneStates.neighbors.fetched_at).toBe(null);
   });
 
   it('sendConsoleCommand adds entries to console history', async () => {

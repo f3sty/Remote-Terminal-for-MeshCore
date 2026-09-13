@@ -94,6 +94,7 @@ export function RepeaterDashboard({
     sendFloodAdvert,
     rebootRepeater,
     syncClock,
+    clearNeighbors,
   } = useRepeaterDashboard(conversation, { hasAdvertLocation });
   const { password, setPassword, rememberPassword, setRememberPassword, persistAfterLogin } =
     useRememberedServerPassword('repeater', conversation.id);
@@ -363,6 +364,7 @@ export function RepeaterDashboard({
                   data={paneData.neighbors}
                   state={paneStates.neighbors}
                   onRefresh={() => refreshPane('neighbors')}
+                  onClear={() => void clearNeighbors()}
                   disabled={anyLoading}
                   repeaterContact={contact}
                   contacts={contacts}

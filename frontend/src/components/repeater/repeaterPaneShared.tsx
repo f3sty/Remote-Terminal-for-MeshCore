@@ -124,6 +124,7 @@ export function RepeaterPane({
   children,
   className,
   contentClassName,
+  headerActions,
 }: {
   title: string;
   headerNote?: ReactNode;
@@ -133,6 +134,7 @@ export function RepeaterPane({
   children: ReactNode;
   className?: string;
   contentClassName?: string;
+  headerActions?: ReactNode;
 }) {
   const fetchedAt = state.fetched_at ?? null;
 
@@ -151,28 +153,31 @@ export function RepeaterPane({
             </p>
           )}
         </div>
-        {onRefresh && (
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={disabled || state.loading}
-            className={cn(
-              'p-1 rounded transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              disabled || state.loading
-                ? 'text-muted-foreground'
-                : 'text-success hover:bg-accent hover:text-success'
-            )}
-            title="Refresh"
-            aria-label={`Refresh ${title}`}
-          >
-            <RefreshIcon
+        <div className="flex items-center gap-1">
+          {headerActions}
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={disabled || state.loading}
               className={cn(
-                'w-3.5 h-3.5',
-                state.loading && 'animate-spin [animation-direction:reverse]'
+                'p-1 rounded transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                disabled || state.loading
+                  ? 'text-muted-foreground'
+                  : 'text-success hover:bg-accent hover:text-success'
               )}
-            />
-          </button>
-        )}
+              title="Refresh"
+              aria-label={`Refresh ${title}`}
+            >
+              <RefreshIcon
+                className={cn(
+                  'w-3.5 h-3.5',
+                  state.loading && 'animate-spin [animation-direction:reverse]'
+                )}
+              />
+            </button>
+          )}
+        </div>
       </div>
       {state.error && (
         <div className="px-3 py-1.5 text-xs text-destructive bg-destructive/5 border-b border-border">

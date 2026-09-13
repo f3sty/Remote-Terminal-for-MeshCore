@@ -45,6 +45,7 @@ const mockHook: {
   sendFloodAdvert: vi.fn(),
   rebootRepeater: vi.fn(),
   syncClock: vi.fn(),
+  clearNeighbors: vi.fn(),
 };
 
 vi.mock('../hooks/useRepeaterDashboard', () => ({
@@ -203,6 +204,17 @@ describe('RepeaterDashboard', () => {
     // All panes should show <not fetched> since data is null
     const notFetched = screen.getAllByText('<not fetched>');
     expect(notFetched.length).toBeGreaterThanOrEqual(7); // At least 7 data panes (incl. LPP Sensors)
+  });
+
+  it('shows the clear neighbors action when neighbor data is loaded', () => {
+    mockHook.loggedIn = true;
+    mockHook.paneData.neighbors = {
+      neighbors: [{ pubkey_prefix: 'aabb', name: 'Neighbor', snr: 4, last_heard_seconds: 2 }],
+    };
+
+    render(<RepeaterDashboard {...defaultProps} />);
+
+    expect(screen.getByRole('button', { name: 'Clear neighbors' })).toBeInTheDocument();
   });
 
   it('shows Load All button when logged in', () => {

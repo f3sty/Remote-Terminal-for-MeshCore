@@ -425,6 +425,10 @@ export const api = {
     fetchJson<RepeaterNeighborsResponse>(`/contacts/${publicKey}/repeater/neighbors`, {
       method: 'POST',
     }),
+  clearRepeaterNeighbors: (publicKey: string) =>
+    fetchJson<{ status: string }>(`/contacts/${publicKey}/repeater/neighbors`, {
+      method: 'DELETE',
+    }),
   repeaterNodeInfo: (publicKey: string) =>
     fetchJson<RepeaterNodeInfoResponse>(`/contacts/${publicKey}/repeater/node-info`, {
       method: 'POST',
